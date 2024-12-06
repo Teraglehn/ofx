@@ -55,12 +55,11 @@ class Transaction {
   }
 
   factory Transaction.fromMapOfx(Map<String, dynamic> map) {
+    final date = DateTimeAdapter.stringToDateTime(map['DTPOSTED']);
     return Transaction(
       type: map['TRNTYPE'].toString(),
-      posted: DateTimeAdapter.stringToDateTime(map['DTPOSTED']),
-      postedLocal: DateTimeAdapter.stringDateTimeInTimeZoneLocal(
-        map['DTPOSTED'],
-      ),
+      posted: date,
+      postedLocal: date.toLocal(),
       amount: double.parse(map['TRNAMT']),
       financialInstitutionID: map['FITID'].toString(),
       referenceNumber: map['REFNUM'].toString(),

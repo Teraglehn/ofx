@@ -104,20 +104,30 @@ class Ofx {
   }
 
   factory Ofx.fromString(String xml) {
-    var map = XmlToJsonAdapter.adapter(xml);
-    var ofx = map['OFX'];
-    var signon = ofx['SIGNONMSGSRSV1']['SONRS'];
-    var statement = ofx['BANKMSGSRSV1']['STMTTRNRS'];
-    var statementTransaction = statement['STMTRS'];
-    var bank = statementTransaction['BANKACCTFROM'];
-    var bankTransactions = statementTransaction['BANKTRANLIST'];
+    final Map<String, dynamic> map = XmlToJsonAdapter.adapter(xml);
+    final Map<String, dynamic> ofx = map['OFX'];
+
+    Map<String, dynamic> signon = {
+      'DTSERVER': DateTimeAdapter.dateTimeToOFXString(DateTime.now()),
+      'LANGUAGE': 'ENG',
+      'FI': {'ORG': '','FID': '',},
+      'STATUS': {'CODE': '0', 'SEVERITY': 'INFO'},
+    };
+    if(ofx.containsKey('SIGNONMSGSRSV1')) {
+      signon = ofx['SIGNONMSGSRSV1']['SONRS'];
+    }
+    
+    final Map<String, dynamic> statement = ofx['BANKMSGSRSV1']['STMTTRNRS'];
+    final Map<String, dynamic> statementTransaction = statement['STMTRS'];
+    final Map<String, dynamic> bank = statementTransaction['BANKACCTFROM'];
+    final Map<String, dynamic> bankTransactions = statementTransaction['BANKTRANLIST'];
 
     return Ofx(
       statusOfx: Status.fromMapOfx(
         signon['STATUS'] as Map<String, dynamic>,
       ),
       server: DateTimeAdapter.stringToDateTime(signon['DTSERVER']),
-      serverLocal: DateTimeAdapter.stringDateTimeInTimeZoneLocal(
+      serverLocal: DateTimeAdapter.stringToDateTimeLocal(
         signon['DTSERVER'],
       ),
       language: signon['LANGUAGE'].toString(),
@@ -133,13 +143,13 @@ class Ofx {
       accountID: bank['ACCTID'].toString(),
       accountType: bank['ACCTTYPE'].toString(),
       start: DateTimeAdapter.stringToDateTime(bankTransactions['DTSTART']),
-      startLocal: DateTimeAdapter.stringDateTimeInTimeZoneLocal(
+      startLocal: DateTimeAdapter.stringToDateTimeLocal(
           bankTransactions['DTSTART']),
       end: DateTimeAdapter.stringToDateTime(bankTransactions['DTEND']),
-      endLocal: DateTimeAdapter.stringDateTimeInTimeZoneLocal(
+      endLocal: DateTimeAdapter.stringToDateTimeLocal(
           bankTransactions['DTEND']),
       transactions: List<Transaction>.from(
-        (bankTransactions['STMTTRN'] as List<dynamic>).map<Transaction>(
+        (bankTransactions['STMTTRN'] is List<dynamic> ? bankTransactions['STMTTRN'] : [bankTransactions['STMTTRN']]).map<Transaction>(
           (x) => Transaction.fromMapOfx(x),
         ),
       ),

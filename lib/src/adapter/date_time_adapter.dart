@@ -1,56 +1,38 @@
 sealed class DateTimeAdapter {
+  static String dateTimeToOFXString(DateTime dateTime) {
+    String year = dateTime.year.toString().padLeft(4, '0');
+    String month = dateTime.month.toString().padLeft(2, '0');
+    String day = dateTime.day.toString().padLeft(2, '0');
+    String hour = dateTime.hour.toString().padLeft(2, '0');
+    String minute = dateTime.minute.toString().padLeft(2, '0');
+    String second = dateTime.second.toString().padLeft(2, '0');
+    String millisecond = dateTime.millisecond.toString().padLeft(3, '0');
+    String timeZone = dateTime.timeZoneOffset.inHours.toString().padLeft(4, '0');
+    String sign = dateTime.timeZoneOffset.isNegative ? '-' : '+';
+
+
+    return '$year$month$day$hour$minute$second.$millisecond[$sign$timeZone]';
+  }
+
   static DateTime stringToDateTime(String dateString) {
-    /*20231109163440[-3:GMT]*/
-    var year = int.parse(dateString.substring(00, 04));
-    var month = int.parse(dateString.substring(04, 06));
-    var day = int.parse(dateString.substring(06, 08));
+    // match YYYYMMDDHHMMSS.XXX [gmt offset[:tz name]]
+    // optional time, fractional seconds, and timezone
+    RegExp regex = RegExp(r'^(\d{8})(\d{6})?(\.\d{1,3})?(?:\s?\[(\+|-)?(\d{4})(?::[^\]]+)?\])?$');
+    var match = regex.firstMatch(dateString);
 
-    var hour = int.parse(dateString.substring(08, 10));
-    var minute = int.parse(dateString.substring(10, 12));
-    var second = int.parse(dateString.substring(12, 14));
+    if (match == null) {
+      throw Exception('Invalid OFX date format: $dateString');
+    }
+    final datePart = match.group(1)!; // YYYYMMDD
+    final timePart = match.group(2) ?? "000000"; // HHMMSS
+    final fractionalPart = match.group(3) ?? ""; // .XXX (default to no fractional seconds)
+    final gmtSign = match.group(4) ?? "+"; // Default to '+' if no sign is present
+    final gmtOffset = match.group(5) ?? "0000"; // Default to UTC if no offset is present
 
-    return DateTime.utc(year, month, day, hour, minute, second);
+    return DateTime.parse("${datePart}T$timePart$fractionalPart $gmtSign$gmtOffset");
   }
 
-  static DateTime stringDateTimeInTimeZoneLocal(String dateString) {
-    /*20231109163440[-3:GMT]*/
-    var date = stringToDateTime(dateString);
-    var timeZone = _getTimeZone(dateString);
-    var timeZoneLocal = DateTime.now().timeZoneOffset.inHours;
-
-    Duration diferenceTimeZone = Duration(hours: timeZone);
-
-    DateTime zero;
-    DateTime dateTimeLocal;
-
-    if (timeZone < 0) {
-      zero = date.add(diferenceTimeZone.abs());
-    } else {
-      zero = date.subtract(diferenceTimeZone.abs());
-    }
-
-    if (timeZoneLocal < 0) {
-      dateTimeLocal = zero.add(Duration(hours: timeZoneLocal));
-    } else {
-      dateTimeLocal = zero.subtract(Duration(hours: timeZoneLocal));
-    }
-
-    return dateTimeLocal;
-  }
-
-  static int _getTimeZone(String dateTime) {
-    RegExp regex = RegExp(r'\[(-?\d+):GMT\]');
-    RegExpMatch? match;
-    int timeZone = 0;
-
-    if (regex.hasMatch(dateTime.trim())) {
-      match = regex.firstMatch(dateTime);
-
-      if (match != null) {
-        timeZone = int.parse(match.group(1) ?? '0');
-      }
-    }
-
-    return timeZone;
+  static DateTime stringToDateTimeLocal(String dateString) {
+    return stringToDateTime(dateString).toLocal();
   }
 }
